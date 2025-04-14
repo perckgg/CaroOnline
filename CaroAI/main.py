@@ -6,6 +6,7 @@ import caro
 import os
 from agent import Agent
 
+
 # -------------------------Setup----------------------------
 # Định nghĩa màu
 
@@ -14,7 +15,7 @@ WHITE = (255, 255, 255)
 GREEN = (77, 199, 61)
 RED = (199, 36, 55)
 BLUE = (68, 132, 222)
-
+GRAY = (200,200,200)
 # Kí hiệu lúc ban đầu
 XO = 'X'
 FPS = 120
@@ -153,6 +154,8 @@ pygame.init()
 # Loop until the user clicks the close button.
 done = False
 status = None
+menu_active = True
+font = pygame.font.SysFont("Arial", 50)
 # Used to manage how fast the screen updates
 clock = pygame.time.Clock()
 
@@ -161,7 +164,7 @@ clock = pygame.time.Clock()
 
 def logo():
     font = pygame.font.Font('freesansbold.ttf', 36)
-    text = font.render('By AI - nhóm 12', True, WHITE, BLACK)
+    text = font.render('By AI - nhóm 6', True, WHITE, BLACK)
     textRect = text.get_rect()
     textRect.center = (1100, 700)
     Screen.blit(text, textRect)
@@ -271,170 +274,192 @@ def checking_winning(status):
         textRect.center = (int(Window_size[0]/2), int(Window_size[1]/2))
         Screen.blit(text, textRect)
         # done = True
+##Menu ITEM
+menu_items = [
+    ("1. Play with AI", 200),
+    ("2. Play with Person", 300),
+    ("3. Exit", 400)
+]
+def draw_main_menu():
+    Screen.fill(BLACK)
+    title_font = pygame.font.SysFont("Arial", 60, bold=True)
+    title = title_font.render("CARO GAME", True, WHITE)
+    Screen.blit(title, (Screen.get_width()//2 - title.get_width()//2, 50))
 
+    mouse_x, mouse_y = pygame.mouse.get_pos()
 
+    menu_items = [
+        ("1. Play with AI", 200),
+        ("2. Play with Person", 300),
+        ("3. Exit", 400)
+    ]
+
+    for text, y in menu_items:
+        text_surf = font.render(text, True, WHITE)
+        text_rect = text_surf.get_rect(center=(Screen.get_width()//2, y))
+        if text_rect.collidepoint(mouse_x, mouse_y):
+            pygame.draw.rect(Screen, GRAY, text_rect.inflate(20, 10), 2)  # border effect
+        Screen.blit(text_surf, text_rect)
+        
+playing_with_ai = False
+playing_with_person = False
 # --------- Main Program Loop -------------------------------------------
 while not done:
     for event in pygame.event.get():  # User did something
-
-# ---------------- Undo button ---------------------------------------------
-        if undo_button.draw(Screen):  # Ấn nút Undo
-            Undo(my_game)
-            print("Undo")
-            pass
-# --------------Exit button--------------------------------------------
-        if exit_button.draw(Screen):  # Ấn nút Thoát
-            print('EXIT')
-            # quit game
-            done = True
-# --------------Replay button-------------------------------------------
-        if replay_button.draw(Screen):  # Ấn nút Chơi lại
-            print('Replay')
-            my_game.reset()
-            re_draw()
-# ---------Normal mode---------------------------------------------------
-        if not is_developer_mode:
-    # ------------- Setup button---------------------------------------------
-            if len(my_game.last_move) > 0:
+        if menu_active:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = event.pos
+                for idx, (text, y) in enumerate(menu_items):
+                    text_rect = font.render(text, True, WHITE).get_rect(center=(Screen.get_width()//2, y))
+                    if text_rect.collidepoint(mouse_x, mouse_y):
+                        if idx == 0:
+                            print("Play with AI")
+                            my_game.use_ai(True)
+                            playing_with_ai = True
+                            menu_active = False
+                        elif idx == 1:
+                            print("Play with Person")
+                            my_game.use_ai(False)
+                            playing_with_person = True
+                            menu_active = False
+                        elif idx == 2:
+                            print("EXIT")
+                            done = True
+        if not menu_active:          
+    # ---------------- Undo button ---------------------------------------------
+            if undo_button.draw(Screen):  # Ấn nút Undo
+                Undo(my_game)
+                print("Undo")
                 pass
-            if not my_game.is_use_ai:
-                pass
-            else:
-    # --------------------- AI turn-------------------------------------------
-                if my_game.turn == my_game.ai_turn:
-                    if my_game.get_winner() == -1:
-    # ---------------------AI MAKE MOVE---------------------------------------- ==================================
-                        # my_game.random_ai()                                    #||  Here is where to change AI  ||
-                        best_move = agent.get_move(my_game)                      #||                              ||
-                        my_game.make_move(best_move[0], best_move[1])            #||                              ||
-                        # pygame.time.delay(500)                                   #||          (❁´◡`❁)           ||
-    # ------------------------------------------------------------------------- =================================
-                        draw(my_game, Screen)
-                    ai_thinking_btn.disable_button()
-                    ai_thinking_btn.re_draw(Screen)
-                    status = my_game.get_winner()
-                    checking_winning(status)
+    # --------------Exit button--------------------------------------------
+            if exit_button.draw(Screen):  # Ấn nút Thoát
+                print('EXIT')
+                # quit game
+                done = True
+    # --------------Replay button-------------------------------------------
+            if replay_button.draw(Screen):  # Ấn nút Chơi lại
+                print('Replay')
+                my_game.reset()
+                re_draw()
+    # ---------Normal mode---------------------------------------------------
+            if not is_developer_mode:
+        # ------------- Setup button---------------------------------------------
+                if len(my_game.last_move) > 0:
+                    pass
+                if not my_game.is_use_ai:
+                    pass
                 else:
+        # --------------------- AI turn-------------------------------------------
+                    if my_game.turn == my_game.ai_turn:
+                        if my_game.get_winner() == -1:
+        # ---------------------AI MAKE MOVE---------------------------------------- ==================================
+                            # my_game.random_ai()                                    #||  Here is where to change AI  ||
+                            best_move = agent.get_move(my_game)                      #||                              ||
+                            my_game.make_move(best_move[0], best_move[1])            #||                              ||
+                            # pygame.time.delay(500)                                   #||          (❁´◡`❁)           ||
+        # ------------------------------------------------------------------------- =================================
+                            draw(my_game, Screen)
+                        ai_thinking_btn.disable_button()
+                        ai_thinking_btn.re_draw(Screen)
+                        status = my_game.get_winner()
+                        checking_winning(status)
+                    else:
+                        pass
+
+        # --------------Draw ai thinking button ------------------------------------
+                if ai_thinking_btn.draw(Screen):
+                    pass
+        # ----------hard button-----------------------------------------------------
+                if h_btn.draw(Screen):
+                    h_btn.disable_button()
+                    m_btn.enable_button()
+                    e_btn.enable_button()
+                    my_game.change_hard_ai("hard")
+                    
+                    agent = Agent(max_depth=my_game.hard_ai,
+                                        XO=my_game.get_current_XO_for_AI())
+                    print("Hard")
+                    pass
+        # ----------medium button---------------------------------------------------
+                if m_btn.draw(Screen):
+                    h_btn.enable_button()
+                    m_btn.disable_button()
+                    e_btn.enable_button()
+                    my_game.change_hard_ai("medium")
+                    
+                    agent = Agent(max_depth=my_game.hard_ai,
+                                        XO=my_game.get_current_XO_for_AI())
+                    print("Medium")
+                    pass
+        # -------------easy button--------------------------------------------------
+                if e_btn.draw(Screen):
+                    h_btn.enable_button()
+                    m_btn.enable_button()
+                    e_btn.disable_button()
+                    my_game.change_hard_ai("easy")                    
+
+                    agent = Agent(max_depth=my_game.hard_ai,
+                                        XO=my_game.get_current_XO_for_AI())
+                    print("Easy")
+                    pass
+        # -------Choose person play first button------------------------------------
+                if person_btn.draw(Screen):  # Ấn nút Chọn người đi trước
+                    person_btn.disable_button()
+                    ai_btn.enable_button()
+                    my_game.set_ai_turn(2)
+                    
+
+                    agent = Agent(max_depth=my_game.hard_ai,
+                                            XO=my_game.get_current_XO_for_AI())
+                    print("Human")
+                    pass
+        # -------Choose AI play first button------------------------------------
+                if ai_btn.draw(Screen):  # Ấn nút Chọn AI đi trước
+                    ai_btn.disable_button()
+                    person_btn.enable_button()
+                    my_game.set_ai_turn(1)
+                    
+
+                    agent = Agent(max_depth=my_game.hard_ai,
+                                    XO=my_game.get_current_XO_for_AI())
+                    print("AI")
                     pass
 
-    # -----------pvp button----------------------------------------------------
-            if pvp_btn.draw(Screen):
-                my_game.use_ai(False)
-                pvp_btn.disable_button()
-                aivp_btn.enable_button()
-                print("P_P")
-                pass
-    # ------------ai vs p button------------------------------------------------
-            if aivp_btn.draw(Screen):
-                my_game.use_ai(True)
-                aivp_btn.disable_button()
-                pvp_btn.enable_button()
-                
-
-                agent = Agent(max_depth=my_game.hard_ai,
-                                    XO=my_game.get_current_XO_for_AI())
-                print("AI_P")
-                pass
-    # --------------Draw ai thinking button ------------------------------------
-            if ai_thinking_btn.draw(Screen):
-                pass
-    # ----------hard button-----------------------------------------------------
-            if h_btn.draw(Screen):
-                h_btn.disable_button()
-                m_btn.enable_button()
-                e_btn.enable_button()
-                my_game.change_hard_ai("hard")
-                
-
-                agent = Agent(max_depth=my_game.hard_ai,
-                                    XO=my_game.get_current_XO_for_AI())
-                print("Hard")
-                pass
-    # ----------medium button---------------------------------------------------
-            if m_btn.draw(Screen):
-                h_btn.enable_button()
-                m_btn.disable_button()
-                e_btn.enable_button()
-                my_game.change_hard_ai("medium")
-                
-
-                agent = Agent(max_depth=my_game.hard_ai,
-                                    XO=my_game.get_current_XO_for_AI())
-                print("Medium")
-                pass
-    # -------------easy button--------------------------------------------------
-            if e_btn.draw(Screen):
-                h_btn.enable_button()
-                m_btn.enable_button()
-                e_btn.disable_button()
-                my_game.change_hard_ai("easy")
-                
-
-                agent = Agent(max_depth=my_game.hard_ai,
-                                    XO=my_game.get_current_XO_for_AI())
-                print("Easy")
-                pass
-    # -------Choose person play first button------------------------------------
-            if person_btn.draw(Screen):  # Ấn nút Chọn người đi trước
-                person_btn.disable_button()
-                ai_btn.enable_button()
-                my_game.set_ai_turn(2)
-                
-
-                agent = Agent(max_depth=my_game.hard_ai,
-                                        XO=my_game.get_current_XO_for_AI())
-                print("Human")
-                pass
-    # -------Choose AI play first button------------------------------------
-            if ai_btn.draw(Screen):  # Ấn nút Chọn AI đi trước
-                ai_btn.disable_button()
-                person_btn.enable_button()
-                my_game.set_ai_turn(1)
-                
-
-                agent = Agent(max_depth=my_game.hard_ai,
-                                XO=my_game.get_current_XO_for_AI())
-                print("AI")
-                pass
-
-    # -----------------checking is exit game? ------------------------------
-            if event.type == pygame.QUIT:  # If user clicked close
-                done = True  # Flag that we are done so we exit this loop
-                # Set the screen background
-    # -------Find pos mouse clicked and make a move-------------------------
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                pos = pygame.mouse.get_pos()
-                col = int(pos[0] // (WIDTH + MARGIN))
-                row = int(pos[1] // (HEIGHT + MARGIN))
-                # print(pos, col, row)
-                if col < COLNUM and row < ROWNUM:
-                    my_game.make_move(row, col)
-                status = my_game.get_winner()
-                if my_game.is_use_ai and my_game.turn == my_game.ai_turn:
-                    ai_thinking_btn.enable_button()
-                    ai_thinking_btn.re_draw(Screen)
-                    draw(my_game, Screen)
-# ---------------Develop-mode-----------------------------------------
-        else:
-            if start_button.draw(Screen):
-                if dev_mode_setup['start'] == False:
-                    dev_mode_setup['start'] = True
-                    ai_thinking_btn.enable_button()
-                else:
-                    dev_mode_setup['start'] = False
-                    ai_thinking_btn.disable_button()
-            ai_thinking_btn.re_draw(Screen)
-            if my_game.get_winner() == -1 and dev_mode_setup['start']:
-                if my_game.turn == 1:
-                    best_move = agent1.get_move(my_game)
-                    my_game.make_move(best_move[0], best_move[1])
+        # -----------------checking is exit game? ------------------------------
+                if event.type == pygame.QUIT:  # If user clicked close
+                    done = True  # Flag that we are done so we exit this loop
+                    # Set the screen background
+        # -------Find pos mouse clicked and make a move-------------------------
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    pos = pygame.mouse.get_pos()
+                    col = int(pos[0] // (WIDTH + MARGIN))
+                    row = int(pos[1] // (HEIGHT + MARGIN))
+                    # print(pos, col, row)
+                    if col < COLNUM and row < ROWNUM:
+                        my_game.make_move(row, col)
                     status = my_game.get_winner()
-                else: 
-                    best_move = agent2.get_move(my_game)
-                    my_game.make_move(best_move[0], best_move[1])
-                    status = my_game.get_winner()
+                    if my_game.is_use_ai and my_game.turn == my_game.ai_turn:
+                        ai_thinking_btn.enable_button()
+                        ai_thinking_btn.re_draw(Screen)
+                        draw(my_game, Screen)
+
 # ------ Draw screen---------------------------------------------------
-    draw(my_game, Screen)
+    if menu_active:
+        draw_main_menu()
+    else:
+        Screen.fill(BLACK)
+        draw(my_game, Screen)
+        exit_button.draw(Screen)
+        if playing_with_ai == True:
+            undo_button.draw(Screen)
+            replay_button.draw(Screen)   
+            ai_thinking_btn.draw(Screen)
+            h_btn.draw(Screen)
+            m_btn.draw(Screen)
+            e_btn.draw(Screen)
+            person_btn.draw(Screen)
+            ai_btn.draw(Screen)
+    
 # -------- checking winner --------------------------------------------
     checking_winning(status)
 # Limit to 999999999 frames per second

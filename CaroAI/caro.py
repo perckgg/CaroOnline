@@ -25,6 +25,8 @@ class Caro:
         self.turn = 1
         self.ai_turn = 2
         self.is_use_ai = False
+        self.player1 = 'X'
+        self.player2 = 'O'
 
     def reset(self):
         '''
@@ -252,6 +254,13 @@ class Caro:
                 return 'O'
             else:
                 return 'X'
+    def turn_symbol(self, player):
+        if player == self.player1:
+            return 'X'
+        elif player == self.player2:
+            return 'O'
+        else:
+            return None  # Nếu player không khớp ai
         
 
 

@@ -5,8 +5,72 @@ import sys
 import caro
 import os
 from agent import Agent
+import json
+import threading
+import websocket
+from queue import Queue
 
+API_BASE_URL = "http://localhost:8000"  # Đổi nếu server không chạy localhost
+WS_BASE_URL = "ws://localhost:8000/ws"  # WebSocket server
+# Global WebSocket client
+ws_client = None
+ws_queue = Queue()
+waiting_for_match = False
+current_side = None
+connected_room = None
+def connect_matchmaking():
+    global ws_client, waiting_for_match
 
+    def on_message(ws, message):
+        print("Received:", message)
+        ws_queue.put(message)
+
+    def on_open(ws):
+        print("WebSocket connection opened")
+
+    def on_close(ws):
+        print("WebSocket connection closed")
+
+    def run():
+        global ws_client, waiting_for_match
+        waiting_for_match = True
+        ws_client = websocket.WebSocketApp(
+            f"{WS_BASE_URL}/match",
+            on_message=on_message,
+            on_open=on_open,
+            on_close=on_close,
+        )
+        ws_client.run_forever()
+
+    threading.Thread(target=run, daemon=True).start()
+def handle_ws_messages():
+    global waiting_for_match, menu_active, current_side, connected_room
+    while not ws_queue.empty():
+        msg = ws_queue.get()
+
+        if msg.startswith("matched:"):
+            _, room_id, side = msg.split(":")
+            current_side = side
+            connected_room = room_id
+            waiting_for_match = False
+            print(f"Matched! Room: {room_id}, Side: {side}")
+
+        elif msg.startswith("joined:"):
+            print("Successfully joined the room.")
+
+        elif msg == "opponent_left":
+            not_found_message = "Opponent left the game. You win!"
+            print(not_found_message)
+            menu_active = True
+
+        elif ":" in msg:  # opponent move
+            try:
+                symbol, move_data = msg.split(":", 1)
+                move_json = json.loads(move_data)
+                r, c = move_json.get("row"), move_json.get("col")
+                my_game.make_move(r, c)
+            except Exception as e:
+                print("Invalid move received:", e)
 # -------------------------Setup----------------------------
 # Định nghĩa màu
 
@@ -16,9 +80,14 @@ GREEN = (77, 199, 61)
 RED = (199, 36, 55)
 BLUE = (68, 132, 222)
 GRAY = (200,200,200)
+LIGHT_BLUE = (135, 206, 250)
+DARK_GRAY = (79, 79, 79)
+DARK_BLUE = (0, 51, 102)  # hoặc dùng (0, 51, 102) nếu muốn dịu hơn
+LIGHT_GRAY = (211, 211, 211)  # hoặc (224, 224, 224) nếu muốn sáng hơn
+
 # Kí hiệu lúc ban đầu
 XO = 'X'
-FPS = 120
+FPS = 30
 # Số hàng, cột
 ROWNUM = 18
 COLNUM = 20
@@ -38,6 +107,26 @@ dev_mode_setup = {
     'ai_2_depth': 3,
     'start': False,
 }
+
+
+
+# Notification variables
+not_found_message = ""
+not_found_timer = 0
+NOTIFY_DURATION = 2000  # milliseconds
+def draw_notification():
+    global not_found_message, not_found_timer
+    if not_found_message:
+        current_time = pygame.time.get_ticks()
+        if current_time - not_found_timer < NOTIFY_DURATION:
+            notify_font = pygame.font.SysFont("Arial", 36)
+            text_surf = notify_font.render(not_found_message, True, RED)
+            bg_rect = text_surf.get_rect(center=(Screen.get_width()//2, Screen.get_height() - 50))
+            pygame.draw.rect(Screen, BLACK, bg_rect.inflate(20, 20))
+            pygame.draw.rect(Screen, RED, bg_rect.inflate(20, 20), 2)
+            Screen.blit(text_surf, bg_rect)
+        else:
+            not_found_message = ""
 # init game and ai
 my_game = caro.Caro(ROWNUM, COLNUM, winning_condition, XO)
 
@@ -300,12 +389,20 @@ def draw_main_menu():
         if text_rect.collidepoint(mouse_x, mouse_y):
             pygame.draw.rect(Screen, GRAY, text_rect.inflate(20, 10), 2)  # border effect
         Screen.blit(text_surf, text_rect)
-        
+def draw_waiting_screen():
+    Screen.fill(BLACK)
+    font = pygame.font.SysFont("Arial", 36)
+    message = font.render("Waiting for Opponent...", True, WHITE)
+    Screen.blit(message, (Screen.get_width()//2 - message.get_width()//2, Screen.get_height()//2 - message.get_height()//2))
+          
 playing_with_ai = False
 playing_with_person = False
+
 # --------- Main Program Loop -------------------------------------------
 while not done:
     for event in pygame.event.get():  # User did something
+        if event.type == pygame.QUIT:  # If user clicked close
+                done = True  # Flag that we are done so we exit this loop
         if menu_active:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = event.pos
@@ -322,10 +419,28 @@ while not done:
                             my_game.use_ai(False)
                             playing_with_person = True
                             menu_active = False
+                            connect_matchmaking()
+                            
                         elif idx == 2:
                             print("EXIT")
                             done = True
-        if not menu_active:          
+        
+        if playing_with_person == True and not menu_active and playing_with_ai == False:
+             if event.type == pygame.MOUSEBUTTONDOWN and my_game.get_winner() == -1:
+                pos = pygame.mouse.get_pos()
+                col = int(pos[0] // (WIDTH + MARGIN))
+                row = int(pos[1] // (HEIGHT + MARGIN))
+                if col < COLNUM and row < ROWNUM:
+                    if my_game.turn_symbol('X') == current_side:
+                        if my_game.make_move(row, col):
+                            move_msg = json.dumps({"type": "move", "row": row, "col": col})
+                            if ws_client:
+                                try:
+                                    ws_client.send(move_msg)
+                                except Exception as e:
+                                    print("Send error:", e)
+            
+        if not menu_active and not playing_with_person:          
     # ---------------- Undo button ---------------------------------------------
             if undo_button.draw(Screen):  # Ấn nút Undo
                 Undo(my_game)
@@ -443,9 +558,12 @@ while not done:
                         ai_thinking_btn.re_draw(Screen)
                         draw(my_game, Screen)
 
+    handle_ws_messages()
 # ------ Draw screen---------------------------------------------------
     if menu_active:
         draw_main_menu()
+    elif waiting_for_match:
+        draw_waiting_screen()
     else:
         Screen.fill(BLACK)
         draw(my_game, Screen)
@@ -459,6 +577,7 @@ while not done:
             e_btn.draw(Screen)
             person_btn.draw(Screen)
             ai_btn.draw(Screen)
+            draw_notification()
     
 # -------- checking winner --------------------------------------------
     checking_winning(status)

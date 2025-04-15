@@ -5,7 +5,7 @@ from datetime import datetime
 class Player:
     def __init__(self, websocket: WebSocket):
         self.websocket = websocket
-        self.last_ping = datetime.utcnow()
+        self.last_ping = datetime.now()
 
 class Room:
     def __init__(self, room_id: str):

@@ -8,6 +8,7 @@ from agent import Agent
 import json
 import threading
 import websocket
+import json
 from queue import Queue
 
 API_BASE_URL = "http://localhost:8000"  # Đổi nếu server không chạy localhost
@@ -18,12 +19,15 @@ ws_queue = Queue()
 waiting_for_match = False
 current_side = None
 connected_room = None
+locked = False
 def connect_matchmaking():
     global ws_client, waiting_for_match
 
     def on_message(ws, message):
-        print("Received:", message)
-        ws_queue.put(message)
+        data = json.loads(message)
+        # current_side = data.get("side")
+        # connected_room = data.get("room_id")
+        ws_queue.put(data)
 
     def on_open(ws):
         print("WebSocket connection opened")
@@ -47,27 +51,22 @@ def handle_ws_messages():
     global waiting_for_match, menu_active, current_side, connected_room
     while not ws_queue.empty():
         msg = ws_queue.get()
-
-        if msg.startswith("matched:"):
-            _, room_id, side = msg.split(":")
-            current_side = side
-            connected_room = room_id
+        print("Received: ", msg)
+        if msg.get("message") == "start":
             waiting_for_match = False
-            print(f"Matched! Room: {room_id}, Side: {side}")
+        elif msg.get("message") == "waiting":
+            current_side = msg.get("side")
+            room_id = msg.get("room_id")
+            print(f"Matched! Room: {room_id}, Side: {current_side}")
 
-        elif msg.startswith("joined:"):
-            print("Successfully joined the room.")
-
-        elif msg == "opponent_left":
+        elif msg.get("message") == "opponent left":
             not_found_message = "Opponent left the game. You win!"
             print(not_found_message)
             menu_active = True
 
-        elif ":" in msg:  # opponent move
+        elif msg.get("message") == "play":  # opponent move
             try:
-                symbol, move_data = msg.split(":", 1)
-                move_json = json.loads(move_data)
-                r, c = move_json.get("row"), move_json.get("col")
+                r, c = msg.get("row"), msg.get("col")
                 my_game.make_move(r, c)
             except Exception as e:
                 print("Invalid move received:", e)
@@ -430,15 +429,16 @@ while not done:
                 pos = pygame.mouse.get_pos()
                 col = int(pos[0] // (WIDTH + MARGIN))
                 row = int(pos[1] // (HEIGHT + MARGIN))
-                if col < COLNUM and row < ROWNUM:
-                    if my_game.turn_symbol('X') == current_side:
-                        if my_game.make_move(row, col):
-                            move_msg = json.dumps({"type": "move", "row": row, "col": col})
-                            if ws_client:
-                                try:
-                                    ws_client.send(move_msg)
-                                except Exception as e:
-                                    print("Send error:", e)
+                if col < COLNUM and row < ROWNUM and my_game.XO == current_side:
+                    if col < COLNUM and row < ROWNUM:
+                        my_game.make_move(row, col)
+                        move_msg = json.dumps({"type": "move", "row": row, "col": col})
+                        if ws_client:
+                            try:
+                                ws_client.send(move_msg)
+                            except Exception as e:
+                                print("Send error:", e)
+                    status = my_game.get_winner()
             
         if not menu_active and not playing_with_person:          
     # ---------------- Undo button ---------------------------------------------

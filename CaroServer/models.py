@@ -6,7 +6,7 @@ class Player:
     def __init__(self, websocket: WebSocket):
         self.websocket = websocket
         self.last_ping = datetime.now()
-
+        self.user_id = 'X'
 class Room:
     def __init__(self, room_id: str):
         self.room_id = room_id

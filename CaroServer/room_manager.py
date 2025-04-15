@@ -26,16 +26,8 @@ class RoomManager:
     def remove_room(self, room_id: str):
         if room_id in self.rooms:
             del self.rooms[room_id]
-    def get_room_status(self,room_id:str):
-        if room_id in self.rooms:
-            if self.rooms[room_id].is_waiting():
-                return "waiting"
-            return "full"
-        return "No room"  
-    def room_exist(self, room_id:str):
-        if room_id in self.rooms:
-            return True
-        return False
+ 
+
     async def cleanup_rooms(self):
         now = datetime.now()
         for room_id in list(self.rooms.keys()):

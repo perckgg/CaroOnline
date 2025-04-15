@@ -21,13 +21,15 @@ async def handle_connection(player, room_id: str, side: str = None):
                 await player.websocket.send_text("Room full")
             except Exception as e:
                 print("Could not notify: Room full:", e)
-            await player.websocket.close()
+            # await player.websocket.close()
             return
 
     # Gửi thông báo đã vào phòng
     try:
         if player.websocket.client_state == WebSocketState.CONNECTED:
             await player.websocket.send_text(f"joined:{room_id}:{player_symbol}")
+        else:
+            print("out")
     except Exception as e:
         print("Send join message failed:", e)
         return

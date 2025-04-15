@@ -32,9 +32,12 @@ async def match_players(websocket: WebSocket):
         if matchmaking_queue.qsize() >= 2:
             player1_ws = await matchmaking_queue.get()
             player2_ws = await matchmaking_queue.get()
-
-            await player1_ws.accept()
-            await player2_ws.accept()
+            if player1_ws == player2_ws:
+                print("Duplicate player detected, aborting match")
+                await matchmaking_queue.put(player1)  # Cho lại vào queue
+                return
+            # await player1_ws.accept()
+            # await player2_ws.accept()
 
             room_id = f"MATCH_{id(player1_ws)}"
             room = room_manager.create_room(room_id)
@@ -54,6 +57,7 @@ async def match_players(websocket: WebSocket):
                 if player1_ws.client_state == WebSocketState.CONNECTED:
                     print(player1_ws.client_state)
                     await player1_ws.send_text(f"matched:{room_id}:X")
+                    
                 if player2_ws.client_state == WebSocketState.CONNECTED:
                     await player2_ws.send_text(f"matched:{room_id}:O")
             except Exception as e:
@@ -74,7 +78,7 @@ async def match_players(websocket: WebSocket):
 
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
-    await websocket.accept()
+    # await websocket.accept()
     from models import Player
     player = Player(websocket)
     await handle_connection(player, room_id)

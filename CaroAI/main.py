@@ -392,8 +392,26 @@ def draw_main_menu():
 def draw_waiting_screen():
     Screen.fill(BLACK)
     font = pygame.font.SysFont("Arial", 36)
+
     message = font.render("Waiting for Opponent...", True, WHITE)
-    Screen.blit(message, (Screen.get_width()//2 - message.get_width()//2, Screen.get_height()//2 - message.get_height()//2))
+    Screen.blit(message, (
+        Screen.get_width() // 2 - message.get_width() // 2,
+        Screen.get_height() // 2 - message.get_height() // 2
+    ))
+
+    # Nút quay lại menu
+    button_font = pygame.font.SysFont("Arial", 24)
+    back_text = button_font.render("← Menu", True, WHITE)
+    back_rect = pygame.Rect(Screen.get_width() - 120, 10, 100, 40)
+    pygame.draw.rect(Screen, (70, 70, 70), back_rect, border_radius=8)
+    Screen.blit(back_text, (
+        back_rect.x + (back_rect.width - back_text.get_width()) // 2,
+        back_rect.y + (back_rect.height - back_text.get_height()) // 2
+    ))
+
+    return back_rect
+
+
           
 playing_with_ai = False
 playing_with_person = False
@@ -564,6 +582,21 @@ while not done:
         draw_main_menu()
     elif waiting_for_match:
         draw_waiting_screen()
+        back_button_rect = draw_waiting_screen()
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if back_button_rect.collidepoint(event.pos):
+                print("Back to menu from waiting screen")
+                waiting_for_match = False
+                menu_active = True
+
+                # Nếu đang kết nối websocket thì đóng lại luôn
+                try:
+                    if ws_client:
+                        ws_client.close()
+                        ws_client = None
+                except Exception as e:
+                    print("Error closing websocket:", e)
     else:
         Screen.fill(BLACK)
         draw(my_game, Screen)

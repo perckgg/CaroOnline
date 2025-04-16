@@ -10,7 +10,6 @@ import threading
 import websocket
 import json
 from queue import Queue
-import time
 
 API_BASE_URL = "http://localhost:8000"  # Đổi nếu server không chạy localhost
 WS_BASE_URL = "ws://localhost:8000/ws"  # WebSocket server
@@ -20,6 +19,57 @@ ws_queue = Queue()
 waiting_for_match = False
 current_side = None
 connected_room = None
+locked = False
+def connect_matchmaking():
+    global ws_client, waiting_for_match
+
+    def on_message(ws, message):
+        data = json.loads(message)
+        # current_side = data.get("side")
+        # connected_room = data.get("room_id")
+        ws_queue.put(data)
+
+    def on_open(ws):
+        print("WebSocket connection opened")
+
+    def on_close(ws):
+        print("WebSocket connection closed")
+
+    def run():
+        global ws_client, waiting_for_match
+        waiting_for_match = True
+        ws_client = websocket.WebSocketApp(
+            f"{WS_BASE_URL}/match",
+            on_message=on_message,
+            on_open=on_open,
+            on_close=on_close,
+        )
+        ws_client.run_forever()
+
+    threading.Thread(target=run, daemon=True).start()
+def handle_ws_messages():
+    global waiting_for_match, menu_active, current_side, connected_room
+    while not ws_queue.empty():
+        msg = ws_queue.get()
+        print("Received: ", msg)
+        if msg.get("message") == "start":
+            waiting_for_match = False
+        elif msg.get("message") == "waiting":
+            current_side = msg.get("side")
+            room_id = msg.get("room_id")
+            print(f"Matched! Room: {room_id}, Side: {current_side}")
+
+        elif msg.get("message") == "opponent left":
+            not_found_message = "Opponent left the game. You win!"
+            print(not_found_message)
+            menu_active = True
+
+        elif msg.get("message") == "play":  # opponent move
+            try:
+                r, c = msg.get("row"), msg.get("col")
+                my_game.make_move(r, c)
+            except Exception as e:
+                print("Invalid move received:", e)
 # -------------------------Setup----------------------------
 # Định nghĩa màu
 
@@ -77,23 +127,15 @@ def draw_notification():
         else:
             not_found_message = ""
 # init game and ai
-my_game, agent, agent1, agent2 = None, None, None, None
-def create_new_game():
-    global my_game, agent, agent1, agent2, waiting_for_match, current_side, connected_room, ws_client
-    my_game = caro.Caro(ROWNUM, COLNUM, winning_condition, XO)
-    agent = Agent(max_depth=my_game.hard_ai,
+my_game = caro.Caro(ROWNUM, COLNUM, winning_condition, XO)
+
+agent = Agent(max_depth=my_game.hard_ai,
                        XO=my_game.get_current_XO_for_AI())
-    agent1 = Agent(max_depth=dev_mode_setup['ai_1_depth'],
-                          XO=dev_mode_setup['ai_1'])
-    agent2 = Agent(max_depth=dev_mode_setup['ai_2_depth'],
-                          XO=dev_mode_setup['ai_2'])
-    waiting_for_match = False
-    current_side = None
-    connected_room = None
 
-create_new_game()
-
-
+agent1 = Agent(max_depth=dev_mode_setup['ai_1_depth'],
+                       XO=dev_mode_setup['ai_1'])
+agent2 = Agent(max_depth=dev_mode_setup['ai_2_depth'],
+                       XO=dev_mode_setup['ai_2'])
 
 Window_size = [1280, 720]
 
@@ -298,8 +340,7 @@ def Undo(self: caro.Caro):
     pass
 
 
-def checking_winning(status,mode="AI"):
-    global menu_active, waiting_for_match, ws_client
+def checking_winning(status):
     if status == 2:
         font = pygame.font.Font('freesansbold.ttf', 100)
         text = font.render('Draw', True, GREEN, BLUE)
@@ -313,11 +354,6 @@ def checking_winning(status,mode="AI"):
         textRect = text.get_rect()
         textRect.center = (int(Window_size[0]/2), int(Window_size[1]/2))
         Screen.blit(text, textRect)
-        print("X wins")
-        if mode == "online":
-            create_new_game()
-            menu_active = True
-            ws_client.close()
         # done = True
     if status == 1:
         font = pygame.font.Font('freesansbold.ttf', 100)
@@ -325,13 +361,7 @@ def checking_winning(status,mode="AI"):
         textRect = text.get_rect()
         textRect.center = (int(Window_size[0]/2), int(Window_size[1]/2))
         Screen.blit(text, textRect)
-        if mode == "online":
-            create_new_game()
-            menu_active = True
-            ws_client.close()
         # done = True
-
-
 ##Menu ITEM
 menu_items = [
     ("1. Play with AI", 200),
@@ -366,64 +396,6 @@ def draw_waiting_screen():
           
 playing_with_ai = False
 playing_with_person = False
-
-### Handle WebSocket connection
-def connect_matchmaking():
-    global ws_client, waiting_for_match
-
-    def on_message(ws, message):
-        data = json.loads(message)
-        # current_side = data.get("side")
-        # connected_room = data.get("room_id")
-        ws_queue.put(data)
-
-    def on_open(ws):
-        print("WebSocket connection opened")
-
-    def on_close(ws):
-        print("WebSocket connection closed")
-
-    def run():
-        global ws_client, waiting_for_match
-        waiting_for_match = True
-        ws_client = websocket.WebSocketApp(
-            f"{WS_BASE_URL}/match",
-            on_message=on_message,
-            on_open=on_open,
-            on_close=on_close,
-        )
-        ws_client.run_forever()
-
-    threading.Thread(target=run, daemon=True).start()
-def handle_ws_messages():
-    global waiting_for_match, menu_active, current_side, connected_room
-    while not ws_queue.empty():
-        msg = ws_queue.get()
-        print("Received: ", msg)
-        if msg.get("message") == "start":
-            waiting_for_match = False
-            # playing_with_ai = False
-            # playing_with_person = True
-        elif msg.get("message") == "waiting":
-            current_side = msg.get("side")
-            room_id = msg.get("room_id")
-            print(f"Matched! Room: {room_id}, Side: {current_side}")
-
-        elif msg.get("message") == "opponent left":
-            not_found_message = "Opponent left the game. You win!"
-            print(not_found_message)
-            menu_active = True
-
-        elif msg.get("message") == "play":  # opponent move
-            try:
-                r, c = msg.get("row"), msg.get("col")
-                my_game.make_move(r, c)
-            except Exception as e:
-                print("Invalid move received:", e)
-        elif msg.get("message") == "end":
-            waiting_for_match = False
-            menu_active = True
-            my_game.reset()
 
 # --------- Main Program Loop -------------------------------------------
 while not done:
@@ -478,8 +450,7 @@ while not done:
             if exit_button.draw(Screen):  # Ấn nút Thoát
                 print('EXIT')
                 # quit game
-                menu_active = True
-                create_new_game()
+                main_active = True
     # --------------Replay button-------------------------------------------
             if replay_button.draw(Screen):  # Ấn nút Chơi lại
                 print('Replay')
@@ -609,19 +580,7 @@ while not done:
             draw_notification()
     
 # -------- checking winner --------------------------------------------
-    status = my_game.get_winner()
-    mode = None
-    if playing_with_ai: mode = "AI"
-    else: mode = "online"
-
-    if status == 0 or status == 1:
-        count = 0
-        while count < 2*FPS:
-            count += 1
-            checking_winning(status)
-            pygame.display.update()
-            clock.tick(FPS)
-    checking_winning(status, mode)
+    checking_winning(status)
 # Limit to 999999999 frames per second
     clock.tick(FPS)
 

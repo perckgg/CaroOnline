@@ -261,8 +261,6 @@ class Caro:
             return 'O'
         else:
             return None  # Nếu player không khớp ai
-        
-
 
 
 # Test

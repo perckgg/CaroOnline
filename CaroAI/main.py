@@ -79,7 +79,7 @@ def draw_notification():
 # init game and ai
 my_game, agent, agent1, agent2 = None, None, None, None
 def create_new_game():
-    global my_game, agent, agent1, agent2, waiting_for_match, current_side, connected_room, ws_client
+    global my_game, agent, agent1, agent2, waiting_for_match, current_side, connected_room, ws_client, playing_with_ai, playing_with_person
     my_game = caro.Caro(ROWNUM, COLNUM, winning_condition, XO)
     agent = Agent(max_depth=my_game.hard_ai,
                        XO=my_game.get_current_XO_for_AI())
@@ -90,6 +90,8 @@ def create_new_game():
     waiting_for_match = False
     current_side = None
     connected_room = None
+    playing_with_ai = False
+    playing_with_person = False
 
 create_new_game()
 
@@ -672,7 +674,11 @@ while not done:
             checking_winning(status)
             pygame.display.update()
             clock.tick(FPS)
-    checking_winning(status, mode)
+        checking_winning(status, mode)
+        if mode == "AI":
+            print('Replay')
+            my_game.reset()
+            re_draw()
 # Limit to 999999999 frames per second
     clock.tick(FPS)
 

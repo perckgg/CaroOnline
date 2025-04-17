@@ -43,3 +43,7 @@ class Room:
         elif self.player2 == player:
             self.player2 = None
         self.locked = False
+    def reset(self):
+        self.player1 = None
+        self.player2 = None
+        self.locked = False

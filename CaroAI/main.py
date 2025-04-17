@@ -438,6 +438,7 @@ def handle_ws_messages():
         elif msg.get("message") == "opponent left":
             not_found_message = "Opponent left the game. You win!"
             print(not_found_message)
+            ws_client.close()
             draw_opponent_left()
             waiting_for_match = False
             menu_active = True

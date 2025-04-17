@@ -43,6 +43,9 @@ async def match_players(websocket: WebSocket):
             await websocket.send_json({"room_id": room.room_id, "side": "O", "message": "waiting"})
             side = 'O'
         
+        while not room.is_full():
+            await asyncio.sleep(1)
+            
         await websocket.send_json({"message": "start"})
 
         while keep_connection:
@@ -59,11 +62,12 @@ async def match_players(websocket: WebSocket):
             else:
                 await websocket.send_json({"message": "opponent left"})
                 keep_connection = False
-                
+        room.reset()
 
     except WebSocketDisconnect:
         print("Player disconnected during matchmaking")
         player.socket = None
+        room.reset()
 
 
 

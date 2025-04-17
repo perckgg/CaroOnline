@@ -616,6 +616,13 @@ while not done:
                 print("Back to menu from waiting screen")
                 waiting_for_match = False
                 menu_active = True
+        try:
+            if ws_client:
+                ws_client.close()
+                ws_client = None
+        except Exception as e:
+                    print("Error closing websocket:", e)
+                
     else:
         Screen.fill(BLACK)
         draw(my_game, Screen)

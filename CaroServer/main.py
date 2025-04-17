@@ -5,6 +5,7 @@ from room_manager import room_manager
 import asyncio
 from starlette.websockets import WebSocketState
 from models import Player
+import time
 
 app = FastAPI()
 
@@ -56,17 +57,16 @@ async def match_players(websocket: WebSocket):
                 oponent_socket = room.player2.websocket
             else:
                 oponent_socket = room.player1.websocket
-            if oponent_socket is not None:
-                await oponent_socket.send_json(message)
-
-            else:
-                await websocket.send_json({"message": "opponent left"})
-                keep_connection = False
         room.reset()
 
     except WebSocketDisconnect:
         print("Player disconnected during matchmaking")
         player.socket = None
+        if side == 'X':
+            oponent_socket = room.player2.websocket
+        else:
+            oponent_socket = room.player1.websocket
+        oponent_socket.send_json({"message": "opponent left"})
         room.reset()
 
 

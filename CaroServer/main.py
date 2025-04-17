@@ -57,6 +57,12 @@ async def match_players(websocket: WebSocket):
                 oponent_socket = room.player2.websocket
             else:
                 oponent_socket = room.player1.websocket
+            if oponent_socket is not None:
+                await oponent_socket.send_json(message)
+            else:
+                print("Opponent socket is None")
+                keep_connection = False
+
         room.reset()
 
     except WebSocketDisconnect:
@@ -66,7 +72,7 @@ async def match_players(websocket: WebSocket):
             oponent_socket = room.player2.websocket
         else:
             oponent_socket = room.player1.websocket
-        oponent_socket.send_json({"message": "opponent left"})
+        await oponent_socket.send_json({"message": "opponent left"})
         room.reset()
 
 

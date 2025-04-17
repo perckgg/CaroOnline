@@ -12,8 +12,8 @@ import json
 from queue import Queue
 import time
 
-API_BASE_URL = "http://localhost:8000"  # Đổi nếu server không chạy localhost
-WS_BASE_URL = "ws://localhost:8000/ws"  # WebSocket server
+API_BASE_URL = "http://10.229.134.211:8000"  # Đổi nếu server không chạy 10.229.134.221
+WS_BASE_URL = "ws://10.229.134.211:8000/ws"  # WebSocket server
 # Global WebSocket client
 ws_client = None
 ws_queue = Queue()
@@ -358,6 +358,16 @@ def draw_main_menu():
         if text_rect.collidepoint(mouse_x, mouse_y):
             pygame.draw.rect(Screen, GRAY, text_rect.inflate(20, 10), 2)  # border effect
         Screen.blit(text_surf, text_rect)
+def draw_opponent_left():
+    font = pygame.font.Font('freesansbold.ttf', 100)
+    text = font.render('Draw', True, GREEN, BLUE)
+    textRect = text.get_rect()
+    textRect.center = (int(Window_size[0]/2), int(Window_size[1]/2))
+    count = 0
+    while count < 2*FPS:
+        Screen.blit(text, textRect)
+        pygame.display.update()
+        clock.tick(FPS)
 def draw_waiting_screen():
     Screen.fill(BLACK)
     font = pygame.font.SysFont("Arial", 36)
@@ -428,7 +438,10 @@ def handle_ws_messages():
         elif msg.get("message") == "opponent left":
             not_found_message = "Opponent left the game. You win!"
             print(not_found_message)
+            draw_opponent_left()
+            waiting_for_match = False
             menu_active = True
+            create_new_game()
 
         elif msg.get("message") == "play":  # opponent move
             try:
@@ -616,17 +629,23 @@ while not done:
                 print("Back to menu from waiting screen")
                 waiting_for_match = False
                 menu_active = True
-        try:
-            if ws_client:
-                ws_client.close()
-                ws_client = None
-        except Exception as e:
-                    print("Error closing websocket:", e)
+            # try:
+            #     if ws_client:
+            #         ws_client.close()
+            #         ws_client = None
+            # except Exception as e:
+            #             print("Error closing websocket:", e)
                 
     else:
         Screen.fill(BLACK)
         draw(my_game, Screen)
         exit_button.draw(Screen)
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if exit_button.rect.collidepoint(event.pos):
+                print("Back to menu from game screen")
+                ws_client.close()
+                menu_active = True
+                create_new_game()
         if playing_with_ai == True:
             undo_button.draw(Screen)
             replay_button.draw(Screen)   

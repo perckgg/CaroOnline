@@ -360,11 +360,12 @@ def draw_main_menu():
         Screen.blit(text_surf, text_rect)
 def draw_opponent_left():
     font = pygame.font.Font('freesansbold.ttf', 100)
-    text = font.render('Draw', True, GREEN, BLUE)
+    text = font.render('Opponent left! You win!', True, GREEN, BLUE)
     textRect = text.get_rect()
     textRect.center = (int(Window_size[0]/2), int(Window_size[1]/2))
     count = 0
     while count < 2*FPS:
+        count += 1
         Screen.blit(text, textRect)
         pygame.display.update()
         clock.tick(FPS)
